@@ -3,7 +3,7 @@
 ### NEMS SaaS Communications Agent v1.0
 ### By Robbie Ferguson // https://nemslinux.com/
 
-import os, sys, psutil, platform, socket, json, logging, configparser, requests
+import os, sys, psutil, platform, socket, json, logging, configparser, requests, uuid
 from time import sleep
 
 data = {}
@@ -18,10 +18,18 @@ try:
   config = read_config()
   key = config["nems-saas"]["key"]
   data["secret"] = config["nems-saas"]["secret"]
-  api = "https://saas.nemslinux.com/api/receive?key=" + key
-  print(api)
+  api = "https://saas.nemslinux.com/api/receive/" + key
 except:
   sys.exit("config.ini is missing or invalid.")
+
+### Load the device's HWID, or create a new one if it doesn't exist
+try:
+  data["hwid"] = config["nems-saas"]["hwid"]
+except:
+  config.set('nems-saas','hwid',str(uuid.uuid4()))
+  with open('config.ini', 'w') as configfile:
+    config.write(configfile)
+    data["hwid"] = config["nems-saas"]["hwid"]
 
 data['hostname'] = socket.gethostname()
 
@@ -116,11 +124,15 @@ def getSystemInfo():
 while True:
   try:
     payload = json.dumps(getSystemInfo())
-    print(payload)
-    headers = {'content-type': 'application/json', 'Accept-Charset': 'UTF-8'}
-    response = requests.post(api, data=payload, headers=headers)
-    print(response.content)
-    sleep(60*5)
+    headers = {'content-type': 'application/x-www-form-urlencoded', 'Accept-Charset': 'UTF-8'}
+    response = requests.post(api, params={"json": payload}, headers=headers, timeout=45, verify=True)
+    # Sleep for 5 minutes if successfully sent payload
+    if response.ok == True:
+      print(response.text)
+      sleep(60*5)
+    # Retry every 30 seconds if failed to send payload
+    else:
+      sleep(30)
   except KeyboardInterrupt: # Catch CTRL-C during loop
     print()
     sys.exit("Exiting.")
