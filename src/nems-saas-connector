@@ -126,12 +126,18 @@ while True:
     payload = json.dumps(getSystemInfo())
     headers = {'content-type': 'application/x-www-form-urlencoded', 'Accept-Charset': 'UTF-8'}
     response = requests.post(api, params={"json": payload}, headers=headers, timeout=45, verify=True)
-    # Sleep for 5 minutes if successfully sent payload
+    # Sleep if successfully sent payload
+    # The sleep time is determined by the remote API, which allows the central server to control throttling
     if response.ok == True:
-      print(response.text)
-      sleep(60*5)
+      # Send a packet based on the sleep timer. This helps scatter requests to reduce the impact on the performance of our SaaS server.
+      timer = int(response.text)
+      print("Packet sent.")
+      print("Sleeping for " + str(timer) + " seconds.")
+      sleep(timer)
     # Retry every 30 seconds if failed to send payload
     else:
+      print("Packet failed: " + response.reason)
+      print("Will try again.")
       sleep(30)
   except KeyboardInterrupt: # Catch CTRL-C during loop
     print()
