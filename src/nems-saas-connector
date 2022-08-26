@@ -17,7 +17,7 @@ def read_config():
 try:
   config = read_config()
   key = config["nems-saas"]["key"]
-  data["secret"] = config["nems-saas"]["secret"]
+#  data["secret"] = config["nems-saas"]["secret"]
   api = "https://api-saas.nemslinux.com/receive/" + key
 except:
   sys.exit("config.ini is missing or invalid.")
@@ -123,9 +123,10 @@ def getSystemInfo():
 
 while True:
   try:
-    payload = json.dumps(getSystemInfo())
+    # Sending the payload as a POST packet over SSL connection
+    payload = {"json": json.dumps(getSystemInfo())}
     headers = {'content-type': 'application/x-www-form-urlencoded', 'Accept-Charset': 'UTF-8'}
-    response = requests.post(api, params={"json": payload}, headers=headers, timeout=45, verify=True)
+    response = requests.post(api, data=payload, headers=headers, timeout=45, verify=True)
     # Sleep if successfully sent payload
     # The sleep time is determined by the remote API, which allows the central server to control throttling
     if response.ok == True:
