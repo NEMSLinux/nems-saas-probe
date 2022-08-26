@@ -18,7 +18,7 @@ try:
   config = read_config()
   key = config["nems-saas"]["key"]
   data["secret"] = config["nems-saas"]["secret"]
-  api = "https://saas.nemslinux.com/api/receive/" + key
+  api = "https://api-saas.nemslinux.com/receive/" + key
 except:
   sys.exit("config.ini is missing or invalid.")
 
