@@ -11,7 +11,7 @@ data = {}
 ### Setup Account Info
 def read_config():
   config = configparser.ConfigParser()
-  config.read('config.ini')
+  config.read('/etc/nems-saas.ini')
   return config
 
 try:
@@ -20,14 +20,14 @@ try:
 #  data["secret"] = config["nems-saas"]["secret"]
   api = "https://api-saas.nemslinux.com/receive/" + key
 except:
-  sys.exit("config.ini is missing or invalid.")
+  sys.exit("/etc/nems-saas.ini is missing or invalid.")
 
 ### Load the device's HWID, or create a new one if it doesn't exist
 try:
   data["hwid"] = config["nems-saas"]["hwid"]
 except:
   config.set('nems-saas','hwid',str(uuid.uuid4()))
-  with open('config.ini', 'w') as configfile:
+  with open('/etc/nems-saas.ini', 'w') as configfile:
     config.write(configfile)
     data["hwid"] = config["nems-saas"]["hwid"]
 
