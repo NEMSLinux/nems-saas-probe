@@ -1,0 +1,4 @@
+#!/bin/bash
+pip install --no-input psutil
+echo "@reboot /usr/local/bin/nems-saas-connector >> /var/log/nems-saas.log 2>&1" > /etc/cron.d/nems-saas
+/usr/local/bin/nems-saas-connector >> /var/log/nems-saas.log 2>&1 &
