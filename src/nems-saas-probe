@@ -3,12 +3,17 @@
 ### NEMS SaaS Communications Agent v1.0
 ### By Robbie Ferguson // https://nemslinux.com/
 
-### Make sure psutil is installed before proceeding
+### Make sure needed modules are installed before proceeding
 import pip
 try:
   __import__("psutil")
 except ImportError:
   pip.main(["install", "psutil"])
+try:
+  __import__("requests")
+except ImportError:
+  pip.main(["install", "requests"])
+
 
 ### Go ahead with the program
 import os, sys, psutil, platform, socket, json, logging, configparser, requests, uuid
@@ -72,7 +77,8 @@ def getSystemInfo():
     data["os"]["mac_ver"] = platform.mac_ver()
 
     ### Load Average
-    load1, load5, load15 = os.getloadavg()
+    #load1, load5, load15 = os.getloadavg()
+    load1, load5, load15 = psutil.getloadavg()
     data["cpu"] = {}
     data["cpu"]["cores"] = {"physical": psutil.cpu_count(logical=False),"total": psutil.cpu_count(logical=True)}
     cpufreq = psutil.cpu_freq()
@@ -96,9 +102,13 @@ def getSystemInfo():
       data["disks"][x.mountpoint] = {}
       data["disks"][x.mountpoint]["device"] = {"disk": x.device,"mountpoint": x.mountpoint}
       # Disk Usage
-      du = psutil.disk_usage(x.mountpoint)
-      data["disks"][x.mountpoint]["usage"] = {}
-      data["disks"][x.mountpoint]["usage"] = {"total": du.total,"used": du.used,"free": du.free,"percent":du.percent}
+      try:
+        du = psutil.disk_usage(x.mountpoint)
+        data["disks"][x.mountpoint]["usage"] = {}
+        data["disks"][x.mountpoint]["usage"] = {"total": du.total,"used": du.used,"free": du.free,"percent":du.percent}
+        data["disks"][x.mountpoint]["offline"] = 0
+      except:
+        data["disks"][x.mountpoint]["offline"] = 1
 
     ### Memory
     mem = psutil.virtual_memory()
@@ -141,7 +151,12 @@ while True:
       # Send a packet based on the sleep timer. This helps scatter requests to reduce the impact on the performance of our SaaS server.
       timer = int(response.text)
       print("Packet sent.")
-      print("Sleeping for " + str(timer) + " seconds.")
+      if timer == 10000:
+        print("Invalid Account Key.")
+      elif timer == 10001:
+        print("Invalid HWID.")
+      else:
+        print("Sleeping for " + str(timer) + " seconds.")
       sleep(timer)
     # Retry every 30 seconds if failed to send payload
     else:
