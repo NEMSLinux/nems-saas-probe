@@ -1,14 +1,30 @@
 #!/bin/bash
 
-package=nems-saas-connector
+package=nems-saas-probe
 
 if [[ $EUID == 0 ]]; then
   echo "ERROR: This script must not be run as root" 2>&1
   exit 1
 fi
 
-dpkg-deb --build debpack ${package}.deb
-mv ${package}.deb /home/admin/repos/apt/nems/
-cd /home/admin/repos/apt/nems/
-reprepro includedeb saas ${package}.deb
-rm ${package}.deb
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+
+tmpdir=`mktemp -d -p /tmp/`
+if [[ -d $tmpdir ]]; then
+
+  cp src/nems-saas-probe $tmpdir
+  cd $tmpdir
+  pyinstaller --onefile nems-saas-probe
+  :
+  echo "Need root access to move file to debpack..."
+  su -c "cp -f dist/nems-saas-probe $SCRIPT_DIR/debpack/usr/local/bin/ && chown -R root:root $SCRIPT_DIR/debpack/usr/local/bin/" root
+  rm -rf $tmpdir
+
+  cd $SCRIPT_DIR
+  dpkg-deb --build debpack ${package}.deb
+  mv ${package}.deb /home/admin/repos/apt/nems/
+  cd /home/admin/repos/apt/nems/
+  reprepro includedeb saas ${package}.deb
+  rm ${package}.deb
+
+fi

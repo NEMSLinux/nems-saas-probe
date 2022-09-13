@@ -1,10 +1,10 @@
-Package: nems-saas-connector
-Essential: yes
-Priority: required
+Package: nems-saas-probe
+Priority: optional
 Section: main
 Maintainer: NEMS Linux <nems@category5.tv>
 Architecture: all
-Version: 1.0.003
-Provides: nems-saas-connector
-Description: NEMS SaaS Connector for Linux
-Depends: python, pip
+Version: 1.0.017
+Provides: nems-saas-probe
+Description: NEMS SaaS Probe for Linux
+#Depends: python3|python, python3-pip|pip
+Requires: nems-saas-config
