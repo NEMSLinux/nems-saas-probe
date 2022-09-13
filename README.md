@@ -1,3 +1,3 @@
-# nems-saas-connector
+# nems-saas-probe
 
-Communications agent for NEMS SaaS.
+State probe for NEMS SaaS.
