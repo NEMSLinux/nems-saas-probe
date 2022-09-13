@@ -13,10 +13,17 @@ try:
   __import__("requests")
 except ImportError:
   pip.main(["install", "requests"])
-
+#try:
+#  __import__("nvidia_smi")
+#except ImportError:
+#  pip.main(["install", "nvidia-ml-py3"])
+try:
+  __import__("GPUtil")
+except ImportError:
+  pip.main(["install", "GPUtil"])
 
 ### Go ahead with the program
-import os, sys, psutil, platform, socket, json, logging, configparser, requests, uuid
+import os, sys, psutil, platform, socket, json, logging, configparser, requests, uuid, GPUtil
 from time import sleep
 
 data = {}
@@ -132,6 +139,15 @@ def getSystemInfo():
         elif str(address.family) == 'AddressFamily.AF_PACKET':
           data["network"][interface_name]["mac"] = address.address
 
+    # GPUs
+    ## NVIDIA
+    try:
+      data["gpu"] = {}
+      GPUs = GPUtil.getGPUs()
+      data["gpu"]["load"] = round(float(GPUs[0].load*100),2)
+      data["gpu"]["memory"] = round(float(GPUs[0].memoryUtil*100),2)
+    except:
+      data["gpu"] = {}
 
     #return json.dumps(data, sort_keys=False, indent=4)
     return data
