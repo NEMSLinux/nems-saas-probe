@@ -9,7 +9,7 @@ setcompressor /SOLID lzma
 !define NAME "NEMS SaaS Probe"
 !define REGPATH_UNINSTSUBKEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\${NAME}"
 Name "${NAME}"
-OutFile "nems-saas-probe-installer.exe"
+OutFile "../nems-saas-probe-installer.exe"
 Unicode True
 RequestExecutionLevel Admin ; Request admin rights on WinVista+ (when UAC is turned on)
 InstallDir "$ProgramFiles\$(^Name)"
