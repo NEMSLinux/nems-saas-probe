@@ -17,14 +17,15 @@ except ImportError:
 #  __import__("nvidia_smi")
 #except ImportError:
 #  pip.main(["install", "nvidia-ml-py3"])
-try:
-  __import__("GPUtil")
-except ImportError:
-  pip.main(["install", "GPUtil"])
+#try:
+#  __import__("GPUtil")
+#except ImportError:
+#  pip.main(["install", "GPUtil"])
 
 ### Go ahead with the program
-import os, sys, psutil, platform, socket, json, logging, configparser, requests, uuid, GPUtil
+import os, sys, psutil, platform, socket, json, logging, configparser, requests, uuid
 from time import sleep
+# import GPUtil
 
 data = {}
 
@@ -141,13 +142,13 @@ def getSystemInfo():
 
     # GPUs
     ## NVIDIA
-    try:
-      data["gpu"] = {}
-      GPUs = GPUtil.getGPUs()
-      data["gpu"]["load"] = round(float(GPUs[0].load*100),2)
-      data["gpu"]["memory"] = round(float(GPUs[0].memoryUtil*100),2)
-    except:
-      data["gpu"] = {}
+#    try:
+#      data["gpu"] = {}
+#      GPUs = GPUtil.getGPUs()
+#      data["gpu"]["load"] = round(float(GPUs[0].load*100),2)
+#      data["gpu"]["memory"] = round(float(GPUs[0].memoryUtil*100),2)
+#    except:
+#      data["gpu"] = {}
 
     #return json.dumps(data, sort_keys=False, indent=4)
     return data
