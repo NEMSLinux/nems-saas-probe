@@ -6,11 +6,9 @@ SET SCRIPT_PATH=%~dp0
 set "tmpdir=%tmp%\nems-saas~%RANDOM%"
 if exist "%tmpdir%" goto :uniqLoop
 
-md %tmpdir%
-cp src\nems-saas-probe %tmpdir%\
-cd %tmpdir%
-python -m PyInstaller --onefile --icon=nemslinux.ico nems-saas-probe
+md "%tmpdir%"
+copy src\nems-saas-probe "%tmpdir%\"
+cd "%tmpdir%"
+python -m PyInstaller --onefile --icon="%SCRIPT_PATH%nemslinux.ico" nems-saas-probe
 
-move dist\nems-saas-probe.exe %SCRIPT_PATH%\windows\
-
-del /r %tmpdir%
+copy dist\nems-saas-probe.exe "%SCRIPT_PATH%\windows\"
