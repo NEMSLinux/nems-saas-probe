@@ -57,11 +57,15 @@ Section "Program files (Required)"
   WriteRegDWORD HKLM "${REGPATH_UNINSTSUBKEY}" "NoModify" 1
   WriteRegDWORD HKLM "${REGPATH_UNINSTSUBKEY}" "NoRepair" 1
 
+  KillProcDLL::KillProc "nems-saas-probe.exe"
+  sleep 200
   File "..\nems-saas-probe.exe"
   WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Run" "nems-saas-probe" '"$InstDir\nems-saas-probe.exe"'
 
-SectionEnd
+  ; Run the probe now
+  EXEC "$INSTDIR\nems-saas-probe.exe"
 
+SectionEnd
 
 !macro DeleteFileOrAskAbort path
   ClearErrors
