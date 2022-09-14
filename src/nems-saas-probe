@@ -35,13 +35,18 @@ def read_config():
   config.read('/etc/nems-saas.ini')
   return config
 
-try:
-  config = read_config()
-  key = config["nems-saas"]["key"]
-#  data["secret"] = config["nems-saas"]["secret"]
-  api = "https://api-saas.nemslinux.com/receive/" + key
-except:
-  sys.exit("/etc/nems-saas.ini is missing or invalid.")
+api = None
+message = None
+while api is None:
+  try:
+    config = read_config()
+    key = config["nems-saas"]["key"]
+    api = "https://api-saas.nemslinux.com/receive/" + key
+  except:
+    while message is None:
+      message = "nems-saas-config is not installed. Please install it now."
+      print(message)
+    sleep(60)
 
 ### Load the device's HWID, or create a new one if it doesn't exist
 try:
