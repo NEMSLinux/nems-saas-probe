@@ -9,7 +9,7 @@ if exist "%tmpdir%" goto :uniqLoop
 md %tmpdir%
 cp src\nems-saas-probe %tmpdir%\
 cd %tmpdir%
-python -m PyInstaller --onefile nems-saas-probe
+python -m PyInstaller --onefile --icon=nemslinux.ico nems-saas-probe
 
 move dist\nems-saas-probe.exe %SCRIPT_PATH%\windows\
 
