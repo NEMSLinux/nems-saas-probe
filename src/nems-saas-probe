@@ -23,17 +23,62 @@ except ImportError:
 #  pip.main(["install", "GPUtil"])
 
 ### Go ahead with the program
-import os, sys, psutil, platform, socket, json, logging, configparser, requests, uuid
+import os, sys, psutil, platform, socket, json, logging, configparser, requests, uuid, argparse
 from time import sleep
 # import GPUtil
+
+### Grab the command line arguments prvided by the user
+parser = argparse.ArgumentParser()
+parser.add_argument(
+    "--loglevel",
+    default="info",
+    help=(
+        "Specify the logging level to output (and higher) to both console and log file. Example '--loglevel debug', Default: 'info', Options: debug info warning error critical"),
+)
+
+options = parser.parse_args()
+levels = {
+    'critical': logging.CRITICAL,
+    'error': logging.ERROR,
+    'warn': logging.WARNING,
+    'warning': logging.WARNING,
+    'info': logging.INFO,
+    'debug': logging.DEBUG
+}
+level = levels.get(options.log.lower())
+if level is None:
+    raise ValueError(
+        f"log level given: {options.log}"
+        f" -- must be one of: {' | '.join(levels.keys())}")
+
 
 data = {}
 
 ### Do some OS-specific stuff
 if os.name == "nt":
   configfileLoc = os.path.expandvars("%systemdrive%\\etc\\nems-saas.ini")
+  logPath = os.path.expandvars("%systemdrive%\\etc\\")
 else:
   configfileLoc = "/etc/nems-saas.ini"
+  logPath = "/var/log/"
+
+### Configure logging
+formatter = logging.Formatter("%(asctime)s [%(threadName)-12.12s] [%(levelname)-5.5s]  %(message)s")
+logging.getLogger('').setLevel(level)
+fh = logging.FileHandler(logPath + "nems-saas.log")
+fh.setLevel(level)
+fh.setFormatter(formatter)
+logging.getLogger('').addHandler(fh)
+
+formatter = logging.Formatter('%(message)s')
+ch = logging.StreamHandler()
+ch.setLevel(level)
+ch.setFormatter(formatter)
+logging.getLogger('').addHandler(ch)
+
+logging.info("NEMS SaaS Probe loaded.")
+
+logging.debug("Using configuration file located at " + configfileLoc)
 
 ### Setup Account Info
 def read_config():
@@ -51,7 +96,7 @@ while api is None:
   except:
     while message is None:
       message = "nems-saas-config is not installed. Please install it now."
-      print(message)
+      logging.warning(message)
     sleep(60)
 
 ### Load the device's HWID, or create a new one if it doesn't exist
@@ -178,21 +223,20 @@ while True:
     if response.ok == True:
       # Send a packet based on the sleep timer. This helps scatter requests to reduce the impact on the performance of our SaaS server.
       timer = int(response.text)
-      print("Packet sent.")
+      logging.info("Packet sent.")
       if timer == 10000:
-        print("Invalid Account Key.")
+        logging.error("Invalid account key.")
       elif timer == 10001:
-        print("Invalid HWID.")
+        logging.error("Invalid HWID.")
       else:
-        print("Sleeping for " + str(timer) + " seconds.")
+        logging.info("Sleeping for " + str(timer) + " seconds.")
       sleep(timer)
     # Retry every 30 seconds if failed to send payload
     else:
-      print("Packet failed: " + response.reason)
-      print("Will try again.")
+      logging.warning("Packet failed: " + response.reason + ". Will try again.")
       sleep(30)
   except requests.ConnectionError:
-    print("Could not connect to NEMS SaaS API. Will try again later.")
+    logging.warning("Could not connect to NEMS SaaS API. Will try again later.")
   except KeyboardInterrupt: # Catch CTRL-C during loop
     print()
     sys.exit("Exiting.")
