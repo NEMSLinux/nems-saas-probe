@@ -45,7 +45,7 @@ levels = {
     'info': logging.INFO,
     'debug': logging.DEBUG
 }
-level = levels.get(options.log.lower())
+level = levels.get(options.lower())
 if level is None:
     raise ValueError(
         f"log level given: {options.log}"
