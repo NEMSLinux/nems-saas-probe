@@ -1,2 +1,3 @@
 #!/bin/bash
-/usr/local/bin/nems-saas-connector >> /var/log/nems-saas.log 2>&1 &
+chown root:root /usr/local/bin/nems-saas-probe
+/usr/local/bin/nems-saas-probe >> /var/log/nems-saas.log 2>&1 &

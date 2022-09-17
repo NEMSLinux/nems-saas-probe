@@ -29,10 +29,16 @@ from time import sleep
 
 data = {}
 
+### Do some OS-specific stuff
+if os.name == "nt":
+  configfileLoc = os.path.expandvars("%systemdrive%\\etc\\nems-saas.ini")
+else
+  configfileLoc = "/etc/nems-saas.ini"
+
 ### Setup Account Info
 def read_config():
   config = configparser.ConfigParser()
-  config.read('/etc/nems-saas.ini')
+  config.read(configfileLoc)
   return config
 
 api = None
@@ -53,7 +59,7 @@ try:
   data["hwid"] = config["nems-saas"]["hwid"]
 except:
   config.set('nems-saas','hwid',str(uuid.uuid4()))
-  with open('/etc/nems-saas.ini', 'w') as configfile:
+  with open(configfileLoc, 'w') as configfile:
     config.write(configfile)
     data["hwid"] = config["nems-saas"]["hwid"]
 

@@ -1,0 +1,3 @@
+#!/bin/bash
+if pgrep nems-saas-probe &> /dev/null ; then killall -SIGHUP nems-saas-probe ; fi
+

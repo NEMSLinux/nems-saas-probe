@@ -1,6 +1,17 @@
 #!/bin/bash
 
+version=1.0.039
+
 package=nems-saas-probe
+if [[ -f ~/arch ]] && [[ $1 != "repopush" ]]; then
+  architecture=$(head -n 1 ~/arch)
+else
+  architecture=($1)
+fi
+
+if [[ $architecture == "" ]]; then
+  echo "Usage: $0 i386|amd64|armhf|arm64|repopush" # Repopush is run on the repos server to push the package after a compile on a separate system
+fi
 
 if [[ $EUID == 0 ]]; then
   echo "ERROR: This script must not be run as root" 2>&1
@@ -9,22 +20,72 @@ fi
 
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
-tmpdir=`mktemp -d -p /tmp/`
-if [[ -d $tmpdir ]]; then
+  if [[ $architecture == "amd64" ]]; then
+    pycommand=/usr/bin/python3
+    arch=64
+  elif [[ $architecture == "arm64" ]]; then
+    pycommand=/usr/bin/python3
+    arch=64
+  elif [[ $architecture == "armhf" ]]; then
+    pycommand=/usr/bin/python3
+    arch=32
+  elif [[ $architecture == "i386" ]]; then
+    pycommand=/usr/bin/python3
+    arch=32
+  elif [[ $architecture == "repopush" ]]; then
+    echo "Performing a repopush..."
+  else
+    echo "Invalid architecture."
+    exit
+  fi
 
-  cp src/nems-saas-probe $tmpdir
-  cd $tmpdir
-  pyinstaller --onefile nems-saas-probe
-  :
-  echo "Need root access to move file to debpack..."
-  su -c "cp -f dist/nems-saas-probe $SCRIPT_DIR/debpack/usr/local/bin/ && chown -R root:root $SCRIPT_DIR/debpack/usr/local/bin/" root
-  rm -rf $tmpdir
+if [[ $architecture != "repopush" ]]; then
 
-  cd $SCRIPT_DIR
-  dpkg-deb --build debpack ${package}.deb
-  mv ${package}.deb /home/admin/repos/apt/nems/
-  cd /home/admin/repos/apt/nems/
-  reprepro includedeb saas ${package}.deb
-  rm ${package}.deb
+  pyarch=$($pycommand -c 'import struct;print( 8 * struct.calcsize("P"))')
+  if [[ $pyarch != $arch ]]; then
+    echo "Requires ${arch}-bit version of Python. This is ${pyarch}-bit."
+    exit 1
+  fi
+
+  echo "Compiling ${package} for ${architecture}..."
+
+  tmpdir=`mktemp -d -p /tmp/`
+  if [[ -d $tmpdir ]]; then
+
+    cd $SCRIPT_DIR
+    cp src/nems-saas-probe $tmpdir
+    cd $tmpdir
+    $pycommand -m PyInstaller --onefile nems-saas-probe
+    :
+    cp -f dist/nems-saas-probe $SCRIPT_DIR/debpack/usr/local/bin/
+    rm -rf $tmpdir
+
+    cd $SCRIPT_DIR
+    echo "Package: $package
+Priority: optional
+Section: main
+Maintainer: NEMS Linux <nems@category5.tv>
+Architecture: $architecture
+Version: $version
+Provides: $package
+Description: NEMS SaaS Probe for Linux
+Requires: nems-saas-config" > debpack/DEBIAN/control
+    dpkg-deb --build debpack ${package}.deb
+    rm debpack/DEBIAN/control
+    rm $SCRIPT_DIR/debpack/usr/local/bin/nems-saas-probe
+    mv ${package}.deb ~/repos/apt/nems/
+    echo "::::::::::::::::::::::::::::::::"
+    echo "You must now run this command on repos server: ./build repopush"
+    echo "::::::::::::::::::::::::::::::::"
+
+  fi
+
+else
+
+  # Perform the repopush
+    cd ~/repos/apt/nems/
+    reprepro includedeb saas ${package}.deb
+    rm ${package}.deb
 
 fi
+
