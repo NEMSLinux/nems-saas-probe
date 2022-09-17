@@ -32,7 +32,7 @@ data = {}
 ### Do some OS-specific stuff
 if os.name == "nt":
   configfileLoc = os.path.expandvars("%systemdrive%\\etc\\nems-saas.ini")
-else
+else:
   configfileLoc = "/etc/nems-saas.ini"
 
 ### Setup Account Info
