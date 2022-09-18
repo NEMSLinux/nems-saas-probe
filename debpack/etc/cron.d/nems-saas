@@ -1,1 +1,1 @@
-@reboot root /usr/local/bin/nems-saas-probe >> /var/log/nems-saas.log 2>&1
+@reboot root /usr/local/bin/nems-saas-probe > /dev/null 2>&1

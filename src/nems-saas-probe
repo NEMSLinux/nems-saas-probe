@@ -1,7 +1,11 @@
 #!/usr/bin/env python3
 
-### NEMS SaaS Communications Agent v1.0
-### By Robbie Ferguson // https://nemslinux.com/
+### NEMS SaaS Communications Agent
+#   By Robbie Ferguson
+#   https://nemslinux.com/
+##################################
+
+ver="1.0.045"
 
 ### Make sure needed modules are installed before proceeding
 import pip
@@ -35,6 +39,13 @@ parser.add_argument(
     help=(
         "Specify the logging level to output (and higher) to both console and log file. Example '--loglevel debug', Default: 'info', Options: debug info warning error critical"),
 )
+parser.add_argument(
+    "--version",
+    action="version",
+    version="NEMS SaaS Probe v" + ver,
+    help=(
+        "Display the probe version."),
+)
 
 options = parser.parse_args()
 levels = {
@@ -53,6 +64,7 @@ if level is None:
 
 
 data = {}
+data['ver'] = ver
 
 ### Do some OS-specific stuff
 if os.name == "nt":
@@ -63,7 +75,7 @@ else:
   logPath = "/var/log/"
 
 ### Configure logging
-formatter = logging.Formatter("%(asctime)s [%(threadName)-12.12s] [%(levelname)-5.5s]  %(message)s")
+formatter = logging.Formatter("%(asctime)s [%(levelname)-5.5s] %(message)s")
 logging.getLogger('').setLevel(level)
 fh = logging.FileHandler(logPath + "nems-saas.log")
 fh.setLevel(level)
@@ -76,7 +88,7 @@ ch.setLevel(level)
 ch.setFormatter(formatter)
 logging.getLogger('').addHandler(ch)
 
-logging.info("NEMS SaaS Probe loaded.")
+logging.info("NEMS SaaS Probe v" + ver + " loaded.")
 
 logging.debug("Using configuration file located at " + configfileLoc)
 
