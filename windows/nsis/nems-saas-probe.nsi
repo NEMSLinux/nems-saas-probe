@@ -83,6 +83,7 @@ Section -Uninstall
   Delete "$InstDir\Uninst.exe"
   RMDir "$InstDir"
   DeleteRegKey HKLM "${REGPATH_UNINSTSUBKEY}"
+  DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Run\nems-saas-probe"
 
   ${UnpinShortcut} "$SMPrograms\${NAME}.lnk"
   Delete "$SMPrograms\${NAME}.lnk"
