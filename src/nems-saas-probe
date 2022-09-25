@@ -228,7 +228,6 @@ while True:
   try:
     # Sending the payload as a POST packet over SSL connection
     payload = {"json": json.dumps(getSystemInfo())}
-    logging.debug("Payload: " + payload)
     headers = {'content-type': 'application/x-www-form-urlencoded', 'Accept-Charset': 'UTF-8'}
     response = requests.post(api, data=payload, headers=headers, timeout=240, verify=True)
     # Sleep if successfully sent payload
