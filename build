@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# Change this in src/nems-saas-probe as well
-version=1.0.048
+# Change ver src/nems-saas-probe before running
+version=`src/nems-saas-probe --vernum`
 
 package=nems-saas-probe
 if [[ -f ~/arch ]] && [[ $1 != "repopush" ]]; then

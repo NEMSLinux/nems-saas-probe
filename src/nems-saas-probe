@@ -5,7 +5,7 @@
 #   https://nemslinux.com/
 ##################################
 
-ver="1.0.045"
+ver="1.0.049"
 
 ### Make sure needed modules are installed before proceeding
 import pip
@@ -45,6 +45,11 @@ parser.add_argument(
     version="NEMS SaaS Probe v" + ver,
     help=(
         "Display the probe version."),
+)
+parser.add_argument(
+    "--vernum",
+    action="version",
+    version=ver
 )
 
 options = parser.parse_args()
