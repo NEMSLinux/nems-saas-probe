@@ -5,31 +5,26 @@
 #   https://nemslinux.com/
 ##################################
 
-ver="1.0.049"
-
-### Make sure needed modules are installed before proceeding
-import pip
-try:
-  __import__("psutil")
-except ImportError:
-  pip.main(["install", "psutil"])
-try:
-  __import__("requests")
-except ImportError:
-  pip.main(["install", "requests"])
-#try:
-#  __import__("nvidia_smi")
-#except ImportError:
-#  pip.main(["install", "nvidia-ml-py3"])
-#try:
-#  __import__("GPUtil")
-#except ImportError:
-#  pip.main(["install", "GPUtil"])
+ver="1.0.050"
 
 ### Go ahead with the program
+
+## Imports
 import os, sys, psutil, platform, socket, json, logging, configparser, requests, uuid, argparse
 from time import sleep
+from pathlib import Path
+
+# NVIDIA
+# import nvidia_smi # Requires nvidia-ml-py3
 # import GPUtil
+
+# Certificates
+import certifi
+
+## End of Imports
+
+# Setup an empty payload
+bulkPayload = {}
 
 ### Grab the command line arguments prvided by the user
 parser = argparse.ArgumentParser()
@@ -44,13 +39,22 @@ parser.add_argument(
     action="version",
     version="NEMS SaaS Probe v" + ver,
     help=(
-        "Display the probe version."),
+        "Display probe version, formatted as plain text."),
 )
 parser.add_argument(
     "--vernum",
     action="version",
-    version=ver
+    version=ver,
+    help=("Display probe version, formatted as float.")
 )
+
+startServer=True
+class noServer(argparse.Action):
+    def __call__(self, parser, namespace, values, option_string=None):
+      global startServer
+      startServer=False
+
+parser.add_argument('--noserver', action=noServer, default=False, help=("Disable the built-in web server."), nargs=0)
 
 options = parser.parse_args()
 levels = {
@@ -67,15 +71,26 @@ if level is None:
         f"log level given: {options.loglevel}"
         f" -- must be one of: {' | '.join(levels.keys())}")
 
-
 data = {}
 data['ver'] = ver
 
 ### Do some OS-specific stuff
 if os.name == "nt":
-  configfileLoc = os.path.expandvars("%systemdrive%\\etc\\nems-saas.ini")
-  logPath = os.path.expandvars("%systemdrive%\\etc\\")
+  # Check the original path in case this is an early-adopter who has the config in the old path
+  configfilePath = os.path.expandvars("%systemdrive%\\etc\\nems-saas.ini")
+  configPath = Path(configfilePath)
+  if configPath.is_file():
+    configfileLoc = configfilePath
+    logPath = os.path.expandvars("%systemdrive%\\etc\\")
+  else:
+    # Use the modern location
+    configFolder = os.path.expandvars("%programdata%\\NEMS SaaS\\")
+    if not os.path.exists(configFolder):
+      os.makedirs(configFolder)
+    configfileLoc = os.path.expandvars("%programdata%\\NEMS SaaS\\nems-saas.ini")
+    logPath = configFolder
 else:
+  # This is not Windows (likely Linux or macOS)
   configfileLoc = "/etc/nems-saas.ini"
   logPath = "/var/log/"
 
@@ -96,6 +111,7 @@ logging.getLogger('').addHandler(ch)
 logging.info("NEMS SaaS Probe v" + ver + " loaded.")
 
 logging.debug("Using configuration file located at " + configfileLoc)
+logging.debug("Log file located at " + logPath + "nems-saas.log")
 
 ### Setup Account Info
 def read_config():
@@ -124,6 +140,62 @@ except:
   with open(configfileLoc, 'w') as configfile:
     config.write(configfile)
     data["hwid"] = config["nems-saas"]["hwid"]
+
+
+# Web server
+if startServer == False:
+  logging.info("Web server disabled by CLI argument.")
+else:
+  PORT = 6367
+  import http.server
+  from http import HTTPStatus
+  import threading
+  from urllib.parse import urlparse, parse_qs
+
+  class Handler(http.server.BaseHTTPRequestHandler):
+    protocol_version = 'HTTP/1.0'
+
+    def do_GET(self):
+        output = "NEMS SaaS Probe v" + ver
+        self.send_header('Content-Length', str(len(output)))
+        self.send_header('Content-type','text/html')
+        self.send_response(HTTPStatus.FORBIDDEN)
+        self.end_headers()
+        self.wfile.write(output.encode())
+
+    def do_POST(self):
+        if hasattr(self.headers, 'getheader'):
+           length = int(self.headers.getheader('content-length'))
+        else:
+           length = int(self.headers.get('content-length'))
+
+        self.send_header('Content-type','application/json')
+        postData = self.rfile.read(length).decode("utf8")
+
+        if postData == key:
+          self.send_response(HTTPStatus.OK)
+          output = json.dumps(bulkPayload)
+        else:
+          self.send_response(HTTPStatus.FORBIDDEN)
+          output = "NEMS SaaS Probe v" + ver
+
+        self.send_header('Content-Length', str(len(output)))
+
+        self.end_headers()
+        self.wfile.write(output.encode())
+
+    def log_message(self, format, *args):
+        logging.info("%s - - [%s] %s" %
+                            (self.client_address[0],
+                             self.log_date_time_string(),
+                             format%args))
+  def start_server():
+    logging.info("Starting json server server on port " + str(PORT))
+    server_address = ("", PORT)
+    httpd = http.server.HTTPServer(server_address, Handler);
+    thread = threading.Thread(target=httpd.serve_forever);
+    thread.start();
+
 
 data['hostname'] = socket.gethostname()
 
@@ -174,22 +246,48 @@ def getSystemInfo():
     for i, percentage in enumerate(psutil.cpu_percent(percpu=True, interval=1)):
       data["cpu"]["usage"]["cores"][i] = percentage
 
+    ### Battery (for laptops, tablets, etc.)
+    battery = psutil.sensors_battery()
+    if battery:
+      data["battery"] = {}
+      data["battery"]["pluggedin"] = battery.power_plugged
+      data["battery"]["percentage"] = battery.percent
+      data["battery"]["timeleft"] = battery.secsleft
+
     ### Disk Usage
-    disks = psutil.disk_partitions()
+    disks = psutil.disk_partitions(all=False)
 
     data["disks"] = {}
     for x in disks:
-      # Partition Information
-      data["disks"][x.mountpoint] = {}
-      data["disks"][x.mountpoint]["device"] = {"disk": x.device,"mountpoint": x.mountpoint}
-      # Disk Usage
-      try:
-        du = psutil.disk_usage(x.mountpoint)
-        data["disks"][x.mountpoint]["usage"] = {}
-        data["disks"][x.mountpoint]["usage"] = {"total": du.total,"used": du.used,"free": du.free,"percent":du.percent}
-        data["disks"][x.mountpoint]["offline"] = 0
-      except:
-        data["disks"][x.mountpoint]["offline"] = 1
+      if sys.getsizeof(data["disks"]) < 50000:
+        # Partition Information
+        data["disks"][x.mountpoint] = {}
+        data["disks"][x.mountpoint]["device"] = {"disk": x.device,"mountpoint": x.mountpoint}
+
+        # inodes
+        if os.name != "nt":
+          st = os.statvfs(x.mountpoint)
+#        free = (st.f_bavail * st.f_frsize) / 1024
+#        total = (st.f_blocks * st.f_frsize) / 1024
+#        used  = ((st.f_blocks - st.f_bfree) * st.f_frsize) / 1024
+          data["disks"][x.mountpoint]["inodes"] = {}
+          data["disks"][x.mountpoint]["inodes"]["total"] = st.f_files
+          data["disks"][x.mountpoint]["inodes"]["free"] = st.f_ffree
+
+        # Disk Usage
+        try:
+          du = psutil.disk_usage(x.mountpoint)
+          # Ensure the disks packet doesn't exceed the limits (as might be the case if a user tried to probe a thousand hard drive Chia farm)
+          # Removal of this check would result in the entire packet being rejected by NEMS SaaS if this size is exceeded
+          data["disks"][x.mountpoint]["usage"] = {}
+          data["disks"][x.mountpoint]["usage"] = {"total": du.total,"used": du.used,"free": du.free,"percent":du.percent}
+          data["disks"][x.mountpoint]["offline"] = 0
+        except:
+          data["disks"][x.mountpoint]["offline"] = 1
+
+      else:
+        logging.error("Storage device at " + x.mountpoint + " cannot be included in packet. Disk data exceeds packet size limitations.")
+
 
     ### Memory
     mem = psutil.virtual_memory()
@@ -229,31 +327,52 @@ def getSystemInfo():
   except Exception as e:
     logging.exception(e)
 
+if startServer == True:
+  start_server()
+
 while True:
   try:
+    # Obtain the current location of certificates
+    os.environ['REQUESTS_CA_BUNDLE']=os.path.join(os.path.dirname(sys.argv[0]), certifi.where())
+
     # Sending the payload as a POST packet over SSL connection
-    payload = {"json": json.dumps(getSystemInfo())}
+    bulkPayload = getSystemInfo()
+    payload = {"json": json.dumps(bulkPayload)}
     headers = {'content-type': 'application/x-www-form-urlencoded', 'Accept-Charset': 'UTF-8'}
     response = requests.post(api, data=payload, headers=headers, timeout=240, verify=True)
     # Sleep if successfully sent payload
     # The sleep time is determined by the remote API, which allows the central server to control throttling
     if response.ok == True:
       # Send a packet based on the sleep timer. This helps scatter requests to reduce the impact on the performance of our SaaS server.
-      timer = int(response.text)
-      logging.info("Packet sent.")
-      if timer == 10000:
-        logging.error("Invalid account key.")
-      elif timer == 10001:
-        logging.error("Invalid HWID.")
+      if (response.text.isnumeric()):
+        timer = int(response.text)
+        logging.info("Packet sent.")
+        bulkPayload["packet"] = 1
+        bulkPayload["timer"] = timer
+        if timer == 10000:
+          logging.error("Invalid account key.")
+          bulkPayload["packet"] = 0
+        elif timer == 10001:
+          logging.error("Invalid HWID.")
+          bulkPayload["packet"] = 0
+        else:
+          logging.info("Sleeping for " + str(timer) + " seconds.")
       else:
-        logging.info("Sleeping for " + str(timer) + " seconds.")
+        # Probably a failed connection / Internet issue
+        # Could be a payload issue
+        # Response was not numeric
+        logging.error("Invalid response from API: " + response.text)
+        bulkPayload["packet"] = 0
+        timer = 60
       sleep(timer)
     # Retry every 30 seconds if failed to send payload
     else:
       logging.warning("Packet failed: " + response.reason + ". Will try again.")
+      bulkPayload["packet"] = 0
       sleep(30)
   except requests.ConnectionError:
     logging.warning("Could not connect to NEMS SaaS API. Will try again later.")
+    bulkPayload["packet"] = 0
   except KeyboardInterrupt: # Catch CTRL-C during loop
     print()
     sys.exit("Exiting.")

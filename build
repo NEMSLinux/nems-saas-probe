@@ -14,14 +14,20 @@ if [[ $architecture == "" ]]; then
   echo "Usage: $0 i386|amd64|armhf|arm64|repopush" # Repopush is run on the repos server to push the package after a compile on a separate system
 fi
 
-if [[ $EUID == 0 ]]; then
-  echo "ERROR: This script must not be run as root" 2>&1
-  exit 1
-fi
+#if [[ $EUID == 0 ]]; then
+#  echo "ERROR: This script must not be run as root" 2>&1
+#  exit 1
+#fi
 
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
-  if [[ $architecture == "amd64" ]]; then
+  multi=0
+  if [[ $architecture == "multi" ]]; then
+    architecture="amd64" # Change to reflect the actual build architecture
+    multi=1
+    pycommand=/usr/bin/python3
+    arch=64
+  elif [[ $architecture == "amd64" ]]; then
     pycommand=/usr/bin/python3
     arch=64
   elif [[ $architecture == "arm64" ]]; then
@@ -53,19 +59,36 @@ if [[ $architecture != "repopush" ]]; then
   tmpdir=`mktemp -d -p /tmp/`
   if [[ -d $tmpdir ]]; then
 
-    cd $SCRIPT_DIR
-    cp src/nems-saas-probe $tmpdir
-    cd $tmpdir
-    $pycommand -m PyInstaller --onefile nems-saas-probe
-    :
-    cp -f dist/nems-saas-probe $SCRIPT_DIR/debpack/usr/local/bin/
-
-    # Add a copy to the ./linux/ folder so people can download the executable directly
-    if [[ ! -e $SCRIPT_DIR/linux/$architecture/ ]]; then
-      mkdir -p $SCRIPT_DIR/linux/$architecture/
+    if [[ ! -e $SCRIPT_DIR/linux/generic/$architecture/ ]]; then
+      mkdir -p $SCRIPT_DIR/linux/generic/$architecture/
     fi
-    cp -f dist/nems-saas-probe $SCRIPT_DIR/linux/$architecture/
+   # if [[ ! -e $SCRIPT_DIR/linux/alpine/$architecture/ ]]; then
+   #   mkdir -p $SCRIPT_DIR/linux/alpine/$architecture/
+   # fi
 
+    cd $SCRIPT_DIR
+    cp src/* $tmpdir/
+    cd $tmpdir
+    if [[ $multi == 1 ]]; then
+      echo "Using docker to cross-compile multiple binaries, including Windows."
+      docker run -v "$(pwd):/src" -e "PLATFORMS=linux,windows" fydeinc/pyinstaller nems-saas-probe
+    else
+      $pycommand -m PyInstaller --onefile nems-saas-probe
+    fi
+    :
+
+    # Add a copy to the public distributable folder in the git repository so people can download the compiled binary directly
+    if [[ $multi == 1 ]]; then
+      cp -f dist/linux/nems-saas-probe $SCRIPT_DIR/debpack/usr/local/bin/
+      cp -f dist/linux/nems-saas-probe $SCRIPT_DIR/linux/generic/$architecture/
+      #cp -f dist/alpine/nems-saas-probe $SCRIPT_DIR/linux/alpine/$architecture/
+      cp -f dist/windows/nems-saas-probe.exe $SCRIPT_DIR/windows/
+    else
+      cp -f dist/nems-saas-probe $SCRIPT_DIR/debpack/usr/local/bin/
+      cp -f dist/nems-saas-probe $SCRIPT_DIR/linux/generic/$architecture/
+    fi
+
+    cd /tmp
     rm -rf $tmpdir
 
     cd $SCRIPT_DIR
