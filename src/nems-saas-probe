@@ -5,7 +5,7 @@
 #   https://nemslinux.com/
 ##################################
 
-ver="1.0.050"
+ver="1.0.051"
 
 ### Go ahead with the program
 
@@ -311,6 +311,22 @@ def getSystemInfo():
         elif str(address.family) == 'AddressFamily.AF_PACKET':
           data["network"][interface_name]["mac"] = address.address
 
+    # Uptime - Unix timestamp of last reboot
+    data["bootstamp"] = int(psutil.boot_time())
+
+    # Logged-in user
+    data["username"] = os.getlogin()
+# Alternate may be better - uses psutil to find all logged in users
+# Switch to this if os.getlogin shows the probe running user (root) rather than actual logged in user
+#    def user_name():
+#      arr = []
+#      for user in psutil.users():
+#        if str(user[0]) != 'None' and user[0] not in arr:
+#          arr.append(user[0])
+#      return arr
+#    users = user_name()
+#    data["username"] = users[0]
+
     # GPUs
     ## NVIDIA
 #    try:
@@ -320,6 +336,8 @@ def getSystemInfo():
 #      data["gpu"]["memory"] = round(float(GPUs[0].memoryUtil*100),2)
 #    except:
 #      data["gpu"] = {}
+
+
 
     #return json.dumps(data, sort_keys=False, indent=4)
     return data
